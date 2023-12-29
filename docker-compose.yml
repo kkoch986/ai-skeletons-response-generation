@@ -1,0 +1,11 @@
+version: '3'
+services:
+  api:
+    image: kkoch986/ai-skeletons-response-generation:latest
+    ports:
+      - "3000:3000"
+    environment:
+      BACKEND_TYPE: "characterai"
+      SERVER_PORT: 3000
+      CHARACTER_AI_TOKEN: "${CHARACTER_AI_TOKEN}"
+      CHARACTER_AI_CHARACTER_ID: "1AYQkwEQ83I3JKxMeNvctG4m7kQL1zTPJuGugAVsT_k"

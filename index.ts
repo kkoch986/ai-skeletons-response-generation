@@ -54,14 +54,15 @@ class CharacterAIBackend implements Backend {
   private characterId;
 
   async initialize(token, characterId) {
-    this.characterId = characterId;
+    characterAI.requester.puppeteerPath = process.env.CHROME_BIN
+    this.characterId = characterId
     if (!token) {
       console.log("No token found, authenticating as guest");
-      await characterAI.authenticateAsGuest();
+      await characterAI.authenticateAsGuest()
     } else {
-      await characterAI.authenticateWithToken(token);
+      await characterAI.authenticateWithToken(token)
     }
-    this.chat = await characterAI.createOrContinueChat(characterId);
+    this.chat = await characterAI.createOrContinueChat(characterId)
   }
 
   async start(): Promise<Response> {
@@ -120,17 +121,17 @@ class CharacterAIBackend implements Backend {
       backend: {
         type: "string",
         short: "b",
-        default: "echo",
+        default: process.env.BACKEND_TYPE || "echo",
       },
       port: {
         type: "string",
         short: "p",
-        default: "3000",
+        default: process.env.SERVER_PORT || "3000",
       },
       characterId: {
         type: "string",
         short: "c",
-        default: "1AYQkwEQ83I3JKxMeNvctG4m7kQL1zTPJuGugAVsT_k",
+        default: process.env.CHARACTER_AI_CHARACTER_ID || "1AYQkwEQ83I3JKxMeNvctG4m7kQL1zTPJuGugAVsT_k",
       },
     },
   });
