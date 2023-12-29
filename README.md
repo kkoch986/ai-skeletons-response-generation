@@ -69,7 +69,6 @@ then you can just run `node index.js` with the flags you wish to alter.
 
 Currently supported flags:
 
-|------|-------------|
 | flag | description |
 | ---- | ----------- |
 | --token <token>, -t <token> | The Character.ai token to use, see [here](https://github.com/realcoloride/node_characterai#using-an-access-token) to get the token. If not provided, will authenticate as a guest. Also, can be provided via the environment as `CHARACTER_AI_TOKEN`. |
