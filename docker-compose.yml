@@ -5,7 +5,18 @@ services:
     ports:
       - "3000:3000"
     environment:
-      BACKEND_TYPE: "characterai"
+      BACKEND_TYPE: "ollama"
       SERVER_PORT: 3000
       CHARACTER_AI_TOKEN: "${CHARACTER_AI_TOKEN}"
       CHARACTER_AI_CHARACTER_ID: "1AYQkwEQ83I3JKxMeNvctG4m7kQL1zTPJuGugAVsT_k"
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

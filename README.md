@@ -2,9 +2,10 @@
 
 This module holds the service for generating responses in the interactive
 pipeline.
-It currently offers 2 backends:
+It currently offers 3 backends:
 
 * [Character.AI](https://beta.character.ai/) (using [the Node Unoffical API](https://github.com/realcoloride/node_characterai))
+* [OLlama](https://ollama.com/)
 * An "Echo" backend which just replies with exactly what you send it
 
 ## Interface
