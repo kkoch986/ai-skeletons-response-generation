@@ -1,6 +1,9 @@
 GIT_SHA=$(shell git rev-parse --short=8 HEAD)
 
-all: index.js
+pull-models:
+	curl http://localhost:11434/api/pull -d '{"name": "neural-chat"}'
+
+all: index.js pull-models
 	node index.js
 
 index.js: index.ts
