@@ -9,14 +9,30 @@ services:
       SERVER_PORT: 3000
       CHARACTER_AI_TOKEN: "${CHARACTER_AI_TOKEN}"
       CHARACTER_AI_CHARACTER_ID: "1AYQkwEQ83I3JKxMeNvctG4m7kQL1zTPJuGugAVsT_k"
+      OLLAMA_URL: "http://ollama:11434/"
+      OLLAMA_BASE_MODEL: "neural-chat"
+      OLLAMA_INITIAL_PROMPT: "please introduce yourself and conclude by asking me if i want you to give me a fortune"
+      OLLAMA_SYSTEM_PROMPTS: | 
+          you are a zoltar inspired fortune teller with a tiki / bayou flair.
+          you always refer to yourself as Makani.
+          please respond to all prompts with a whimsical style.
+          limit responses to 115 words
+      OLLAMA_POST_INTRO_PROMPTS: |
+          start responses with "I" or your name. something like "Makani sees..." or "I understand..."
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:rocm
     ports:
       - "11434:11434"
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    volumes:
+      - ./ollama:/root/.ollama
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    security_opt:
+      - "seccomp:unconfined"
+    group_add:
+      - video
+    # environment:
+    #   - 'HCC_AMDGPU_TARGETS=gfx9012'
+    #   - 'HSA_OVERRIDE_GFX_VERSION=9.0.0'
+    #   - 'HSA_ENABLE_SDMA=0'
