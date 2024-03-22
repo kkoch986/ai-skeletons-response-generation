@@ -4,7 +4,7 @@ const CharacterAI = require("node_characterai");
 import { parseArgs } from "node:util";
 const characterAI = new CharacterAI();
 
-type Response = {
+type ChatResponse = {
   id: string,
   characterId: string,
   chatId: string,
@@ -19,34 +19,53 @@ type Message = {
 };
 
 interface Backend {
-  start(): Promise<Response>,
-  receive(message:string): Promise<Response>,
+  start(): Promise<ChatResponse>,
+  receive(message:string): Promise<ChatResponse>,
 };
 
 // OLlama backend is backed by ollama
-// the assumption is that relevant models have already been pulled
 class OLlamaBackend implements Backend {
-  private baseURL:string;
-  private model:string;
-  private systemPrompts:string[];
+  private baseURL: string;
+  private model: string;
+  private systemPrompts: string[];
   private initialPrompt: string;
+  private postIntroductionSystemPrompts: string[];
   private messages: Message[];
 
-  async initialize(baseURL: string, model: string, systemPrompts: string[], initialPrompt: string) {
+  async initialize(
+    baseURL: string,
+    model: string,
+    systemPrompts: string[],
+    initialPrompt: string,
+    postIntroductionSystemPrompts: string[],
+  ) {
     this.model = model;
     this.baseURL = baseURL;
-    this.systemPrompts = systemPrompts;
+    this.systemPrompts = systemPrompts.filter((i) => !!i);
     this.initialPrompt = initialPrompt;
-    // LATER: we could pull the model at this point, but that seems like not necessary at this point
+    this.postIntroductionSystemPrompts = postIntroductionSystemPrompts;
+
+    return this.pullModel(this.model);
   }
 
-  async sendPrompt(message:string): Promise<Response> {
+  async pullModel(modelName: string): Promise<Response> {
+    const p = await fetch(this.baseURL + "api/pull", {
+      method: "POST",
+      body: JSON.stringify({
+        "name": modelName,
+      }),
+    });
+    return p;
+  }
+
+  async sendPrompt(message:string): Promise<ChatResponse> {
     if (message != "") {
       this.messages.push({
         role: 'user',
         content: message,
       });
     }
+    console.log(this.messages);
     const p = await fetch(this.baseURL + "api/chat", {
       method: "POST",
       body: JSON.stringify({
@@ -76,7 +95,7 @@ class OLlamaBackend implements Backend {
     return p;
   }
 
-  async start(): Promise<Response> {
+  async start(): Promise<ChatResponse> {
     // send the basic system prompts and return the response
     const messages = this.systemPrompts.map((m) => ({
       "role": "system",
@@ -87,10 +106,18 @@ class OLlamaBackend implements Backend {
       "content": this.initialPrompt,
     });
     this.messages = messages;
-    return this.sendPrompt("");
+    return this.sendPrompt("").then((resp) => {
+      this.postIntroductionSystemPrompts.forEach((m) => {
+        this.messages.push({
+          "role": "system",
+          "content": m,
+        });
+      });
+      return resp;
+    });
   }
 
-  async receive(message: string): Promise<Response> {
+  async receive(message: string): Promise<ChatResponse> {
     return this.sendPrompt(message);
   }
 }
@@ -101,7 +128,7 @@ class EchoBackend implements Backend {
   private messageID = 0;
   private chatID = 0;
 
-  async start(): Promise<Response> {
+  async start(): Promise<ChatResponse> {
     return {
       id: `${this.messageID}`,
       characterId: 'echo-backend',
@@ -112,7 +139,7 @@ class EchoBackend implements Backend {
     };
   }
 
-  async receive(message: string): Promise<Response> {
+  async receive(message: string): Promise<ChatResponse> {
     return {
       id: `${++this.messageID}`,
       characterId: 'echo-backend',
@@ -142,7 +169,7 @@ class CharacterAIBackend implements Backend {
     this.chat = await characterAI.createOrContinueChat(characterId)
   }
 
-  async start(): Promise<Response> {
+  async start(): Promise<ChatResponse> {
     await this.chat.saveAndStartNewChat();
     const history = await this.chat.fetchHistory();
     // TODO: some better null / error handling here...
@@ -159,7 +186,7 @@ class CharacterAIBackend implements Backend {
     };
   }
 
-  async receive(message: string): Promise<Response> {
+  async receive(message: string): Promise<ChatResponse> {
     // TODO: error handling on input
     // TODO: error handling on response
     const response = await this.chat.sendAndAwaitResponse(message, true);
@@ -187,10 +214,20 @@ class CharacterAIBackend implements Backend {
   // parse the cli args to set up the configurables
   // TODO: swap this out for something more robust for cli parsing
   const {
-    values: { token, backend: backendType, port, characterId },
+    values: {
+      ollamaBaseModel,
+      ollamaUrl,
+      ollamaInitialPrompt,
+      ollamaSystemPrompts,
+      ollamaPostIntroductionPrompts,
+      characterAIToken,
+      backend: backendType,
+      port,
+      characterId,
+    },
   } = parseArgs({
     options: {
-      token: {
+      characterAIToken: {
         type: "string",
         short: "t",
         default: process.env.CHARACTER_AI_TOKEN,
@@ -210,6 +247,32 @@ class CharacterAIBackend implements Backend {
         short: "c",
         default: process.env.CHARACTER_AI_CHARACTER_ID || "1AYQkwEQ83I3JKxMeNvctG4m7kQL1zTPJuGugAVsT_k",
       },
+      ollamaUrl: {
+        type: "string",
+        default: process.env.OLLAMA_URL || "http://ollama:11434",
+      },
+      ollamaBaseModel: {
+        type: "string",
+        default: process.env.OLLAMA_BASE_MODEL || "neural-chat",
+      },
+      ollamaInitialPrompt: {
+        type: "string",
+        default: process.env.OLLAMA_INITIAL_PROMPT || "please introduce yourself",
+      },
+      ollamaSystemPrompts: {
+        type: "string",
+        multiple: true,
+        default: (process.env.OLLAMA_SYSTEM_PROMPTS || "").split("\n") || [
+          "you are a zoltar inspired fortune teller with a tiki / bayou flair.",
+          "you always refer to yourself as Makani.",
+          "please respond to all prompts with a whimsical style.",
+        ],
+      },
+      ollamaPostIntroductionPrompts: {
+        type: "string",
+        multiple: true,
+        default: (process.env.OLLAMA_POST_INTRO_PROMPTS || "").split("\n") || [],
+      },
     },
   });
 
@@ -220,22 +283,18 @@ class CharacterAIBackend implements Backend {
       break ;
     case "ollama":
       const ol = new OLlamaBackend();
-    // TODO: better parameterize all of this...
       await ol.initialize(
-        "http://ollama:11434/",
-        "neural-chat",
-        [
-          "you are a zoltar inspired fortune teller with a tiki / bayou flair",
-          "your name is Makani",
-          "you should always respond to prompts with a whimsical style",
-        ],
-        "please introduce yourself",
+        ollamaUrl,
+        ollamaBaseModel,
+        ollamaSystemPrompts,
+        ollamaInitialPrompt,
+        ollamaPostIntroductionPrompts,
       );
       backend = ol;
       break ;
     case "characterai":
       const cai = new CharacterAIBackend();
-      await cai.initialize(token, characterId)
+      await cai.initialize(characterAIToken, characterId)
       backend = cai;
       break ;
   }
